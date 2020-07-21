@@ -513,7 +513,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				break;
 			}
 
-      if (pos.is_draw(ply)) {
+      if (pos.is_draw(0)) {
 		  if (use_draw_in_training_data_generation) {
 			  // Write if draw.
 			  flush_psv(0);
@@ -592,6 +592,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				// Processing according to each thousand-day hand.
 
+#if 0
         if (pos.is_draw(0)) {
 			if (use_draw_in_training_data_generation) {
 				// Write if draw.
@@ -599,6 +600,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
           break;
         }
+#endif
 
 				// Use PV's move to the leaf node and use the value that evaluated() is called on that leaf node.
 				auto evaluate_leaf = [&](Position& pos , vector<Move>& pv)
@@ -2157,7 +2159,11 @@ bool LearnerThink::save(bool is_final)
 		Eval::save_eval(dir_name);
 #if defined(EVAL_NNUE)
 		if (newbob_decay != 1.0 && latest_loss_count > 0) {
+			const int newbob_ok_trials = 5;
+			const int max_num_drops = newbob_num_trials;
 			static int trials = newbob_num_trials;
+			static int ok_trials = newbob_ok_trials;
+			static int num_drops = 0;
 			const double latest_loss = latest_loss_sum / latest_loss_count;
 			latest_loss_sum = 0.0;
 			latest_loss_count = 0;
@@ -2167,6 +2173,21 @@ bool LearnerThink::save(bool is_final)
 				best_loss = latest_loss;
 				best_nn_directory = Path::Combine((std::string)Options["EvalSaveDir"], dir_name);
 				trials = newbob_num_trials;
+				ok_trials = newbob_ok_trials;
+			} else if (latest_loss < best_loss * 1.02) {
+				cout << " == best (" << best_loss << "), OK" << endl;
+				best_nn_directory = Path::Combine((std::string)Options["EvalSaveDir"], dir_name);
+				if (--ok_trials == 0) {
+					++num_drops;
+					cout << "reducing learning rate scale from " << newbob_scale
+					     << " to " << (newbob_scale * newbob_decay) << endl;
+					newbob_scale *= newbob_decay;
+					Eval::NNUE::SetGlobalLearningRateScale(newbob_scale);
+
+					ok_trials = newbob_ok_trials;
+				} else {
+                    cout << ok_trials << " ok_trials left" << endl;
+                }
 			} else {
 				cout << " >= best (" << best_loss << "), rejected" << endl;
 				if (best_nn_directory.empty()) {
@@ -2175,7 +2196,9 @@ bool LearnerThink::save(bool is_final)
 					cout << "restoring parameters from " << best_nn_directory << endl;
 					Eval::NNUE::RestoreParameters(best_nn_directory);
 				}
+				ok_trials = newbob_ok_trials;
 				if (--trials > 0 && !is_final) {
+					++num_drops;
 					cout << "reducing learning rate scale from " << newbob_scale
 					     << " to " << (newbob_scale * newbob_decay)
 					     << " (" << trials << " more trials)" << endl;
@@ -2183,7 +2206,7 @@ bool LearnerThink::save(bool is_final)
 					Eval::NNUE::SetGlobalLearningRateScale(newbob_scale);
 				}
 			}
-			if (trials == 0) {
+			if (trials == 0 || num_drops >= max_num_drops) {
 				cout << "converged" << endl;
 				return true;
 			}
@@ -3239,6 +3262,8 @@ void learn(Position&, istringstream& is)
 		learn_think.latest_loss_sum = 0.0;
 		learn_think.latest_loss_count = 0;
 		cout << "initial loss: " << learn_think.best_loss << endl;
+        learn_think.best_loss *= 1.05;
+        cout << "(Inflated to " << learn_think.best_loss << ")" << endl;
 	}
 #endif
 
