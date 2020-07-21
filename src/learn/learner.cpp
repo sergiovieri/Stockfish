@@ -22,6 +22,7 @@
 #include "learn.h"
 #include "multi_think.h"
 #include "../uci.h"
+#include "../syzygy/tbprobe.h"
 
 // evaluate header for learning
 #include "../eval/evaluate_common.h"
@@ -568,6 +569,20 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				// If you win one move, declarative win, mate_in(2) will be returned here, so it will be the same value as the upper limit of eval_limit,
 				// This if expression is always true. The same applies to resign.
+
+                if (pos.count<ALL_PIECES>() <= 6) {
+                    Tablebases::ProbeState probe_state;
+                    Tablebases::WDLScore wdl = Tablebases::probe_wdl(pos, &probe_state);
+                    assert(wdl != Tablebases::WDLScore::WDLScoreNone);
+                    if (wdl == Tablebases::WDLScore::WDLWin) {
+                        flush_psv(1);
+                    } else if (wdl == Tablebases::WDLScore::WDLLoss) {
+                        flush_psv(-1);
+                    } else {
+                        flush_psv(0);
+                    }
+                    break;
+                }
 
 				if (abs(value1) >= eval_limit)
 				{
