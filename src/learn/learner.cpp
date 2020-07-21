@@ -684,7 +684,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				// Did you just write the same phase?
 				// This may include the same aspect as it is generated in parallel on multiple PCs, so
 				// It is better to do the same process when reading.
-				{
+				if (false) {
 					auto key = pos.key();
 					auto hash_index = (size_t)(key & (GENSFEN_HASH_SIZE - 1));
 					auto key2 = hash[hash_index];
@@ -820,7 +820,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				// When trying to evaluate the move from the outcome of the game,
 				// There is a random move this time, so try not to fall below this.
-				a_psv.clear(); // clear saved aspect
+				// a_psv.clear(); // clear saved aspect
 			}
 
 		DO_MOVE:;
