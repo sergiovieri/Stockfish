@@ -2055,6 +2055,8 @@ namespace Learner
 
       assert(!rootMoves.empty());
 
+      TB::rank_root_moves(pos, rootMoves);
+
       //#if defined(USE_GLOBAL_OPTIONS)
       // Since the generation of the substitution table for each search thread should be managed,
       // Increase the generation of the substitution table for this thread because it is a new search.
