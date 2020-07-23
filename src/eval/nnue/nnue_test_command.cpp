@@ -9,6 +9,7 @@
 
 #include <set>
 #include <fstream>
+#include <random>
 
 #define ASSERT(X) { if (!(X)) { std::cout << "\nError : ASSERT(" << #X << "), " << __FILE__ << "(" << __LINE__ << "): " << __func__ << std::endl; \
  std::this_thread::sleep_for(std::chrono::microseconds(3000)); *(int*)1 =0;} }
@@ -29,7 +30,8 @@ void TestFeatures(Position& pos) {
   StateInfo state[MAX_PLY]; // StateInfo only for the maximum number of steps
   int ply; // Trouble from the initial phase
 
-  PRNG prng(20171128);
+  std::random_device seed_it;
+  PRNG prng(seed_it());
 
   std::uint64_t num_moves = 0;
   std::vector<std::uint64_t> num_updates(kRefreshTriggers.size() + 1);

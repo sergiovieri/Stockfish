@@ -10,13 +10,15 @@
 #include "../thread_win32_osx.h"
 
 #include <atomic>
+#include <random>
 
 // Learning from a game record, when making yourself think and generating a fixed track, etc.
 // Helper class used when multiple threads want to call Search::think() individually.
 // Derive and use this class.
 struct MultiThink
 {
-	MultiThink() : prng(21120903)
+    std::random_device seed_it;
+	MultiThink() : prng(seed_it())
 	{
 		loop_count = 0;
 	}
