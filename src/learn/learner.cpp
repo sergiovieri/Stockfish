@@ -417,6 +417,9 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		// Refer to the members of BookMoveSelector defined in the search section.
 		//auto& book = ::book;
 
+        int resign_counter = 0;
+        bool should_resign = prng.rand(10) > 1;
+
 		// Save the situation for one station, and write it out including the winning and losing at the end.
 		// The function to write is flush_psv() below this.
 		PSVector a_psv;
@@ -584,14 +587,18 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
                     break;
                 }
 
-				if (abs(value1) >= eval_limit)
-				{
-					// sync_cout << pos << "eval limit = "<< eval_limit << "over ,move = "<< pv1[0] << sync_endl;
-
-					// If value1 >= eval_limit in this aspect, you win (the turn side of this aspect).
-					flush_psv((value1 >= eval_limit) ? 1 : -1);
-					break;
-				}
+                if (abs(value1) >= eval_limit)
+                {
+                    // sync_cout << pos << "eval limit = "<< eval_limit << "over ,move = "<< pv1[0] << sync_endl;
+                    resign_counter++;
+                    // If value1 >= eval_limit in this aspect, you win (the turn side of this aspect).
+                    if ((should_resign && resign_counter >= 4) || abs(value1) >= 10000) {
+                        flush_psv((value1 >= eval_limit) ? 1 : -1);
+                        break;
+                    }
+                } else {
+                    resign_counter = 0;
+                }
 
 				// Verification of a strange move
 				if (pv1.size() > 0
