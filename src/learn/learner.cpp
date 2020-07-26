@@ -462,6 +462,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
 		};
 
+        const int random_opening_ply = 8;
 		// ply flag for whether or not to randomly move by eyes
 		vector<bool> random_move_flag;
 		{
@@ -491,6 +492,11 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				swap(a[i], a[prng.rand((uint64_t)a.size() - i) + i]);
 				random_move_flag[a[i]] = true;
 			}
+
+            // Opening random
+            for (int i = 0; i < random_opening_ply; ++i) {
+                random_move_flag[i] = true;
+            }
 		}
 
 		// A counter that keeps track of the number of random moves
@@ -557,6 +563,28 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			// 		goto DO_MOVE;
 			//}
 
+			if (pos.count<ALL_PIECES>() <= 6) {
+				Tablebases::ProbeState probe_state;
+				Tablebases::WDLScore wdl = Tablebases::probe_wdl(pos, &probe_state);
+				assert(wdl != Tablebases::WDLScore::WDLScoreNone);
+				if (wdl == Tablebases::WDLScore::WDLWin) {
+					flush_psv(1);
+				} else if (wdl == Tablebases::WDLScore::WDLLoss) {
+					flush_psv(-1);
+				} else {
+					flush_psv(0);
+				}
+				break;
+			}
+
+            if (
+                    // 1. Random move of random_move_count times from random_move_minply to random_move_maxply
+                    (random_move_minply != -1 && ply <(int)random_move_flag.size() && random_move_flag[ply]) ||
+                    // 2. A mode to perform random move of random_move_count times after leaving the track
+                    (random_move_minply == -1 && random_move_c <random_move_count)) {
+                depth = random_multi_pv_depth;
+            }
+
 			{
 				// search_depth～search_depth2 Evaluation value of hand reading and PV (best responder row)
 				// There should be no problem if you narrow the search window.
@@ -572,20 +600,6 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				// If you win one move, declarative win, mate_in(2) will be returned here, so it will be the same value as the upper limit of eval_limit,
 				// This if expression is always true. The same applies to resign.
-
-                if (pos.count<ALL_PIECES>() <= 6) {
-                    Tablebases::ProbeState probe_state;
-                    Tablebases::WDLScore wdl = Tablebases::probe_wdl(pos, &probe_state);
-                    assert(wdl != Tablebases::WDLScore::WDLScoreNone);
-                    if (wdl == Tablebases::WDLScore::WDLWin) {
-                        flush_psv(1);
-                    } else if (wdl == Tablebases::WDLScore::WDLLoss) {
-                        flush_psv(-1);
-                    } else {
-                        flush_psv(0);
-                    }
-                    break;
-                }
 
                 if (abs(value1) >= eval_limit)
                 {
@@ -716,8 +730,8 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 						// Clear the saved situation because the win/loss information will be incorrect.
 						// anyway, when the hash matches, it's likely that the previous phases also match
 						// Not worth writing out.
-						a_psv.clear();
-						goto SKIP_SAVE;
+						// a_psv.clear();
+						// goto SKIP_SAVE;
 					}
 					hash[hash_index] = key; // Replace with the current key.
 				}
@@ -816,12 +830,13 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				}
 				else {
 					// Since the logic becomes complicated, I'm sorry, I will search again with MultiPV here.
-					Learner::search(pos, random_multi_pv_depth, random_multi_pv);
+                    int cur_multi_pv = (ply < random_opening_ply ? 8 : random_multi_pv);
+					Learner::search(pos, random_multi_pv_depth, cur_multi_pv);
 					// Select one from the top N hands of root Moves
 
 					auto& rm = pos.this_thread()->rootMoves;
 
-					uint64_t s = min((uint64_t)rm.size(), (uint64_t)random_multi_pv);
+                    uint64_t s = min((uint64_t)rm.size(), (uint64_t)cur_multi_pv);
 					for (uint64_t i = 1; i < s; ++i)
 					{
 						// The difference from the evaluation value of rm[0] must be within the range of random_multi_pv_diff.
@@ -2198,8 +2213,14 @@ bool LearnerThink::save(bool is_final)
 				ok_trials = newbob_ok_trials;
 			} else if (latest_loss < best_loss * 1.02) {
 				cout << " == best (" << best_loss << "), OK" << endl;
-				best_nn_directory = Path::Combine((std::string)Options["EvalSaveDir"], dir_name);
-				if (--ok_trials == 0) {
+				// best_nn_directory = Path::Combine((std::string)Options["EvalSaveDir"], dir_name);
+                if (--ok_trials == 0) {
+                    if (best_nn_directory.empty()) {
+                        cout << "WARNING: no improvement from initial model" << endl;
+                    } else {
+                        cout << "restoring parameters from " << best_nn_directory << endl;
+                        Eval::NNUE::RestoreParameters(best_nn_directory);
+                    }
 					++num_drops;
 					cout << "reducing learning rate scale from " << newbob_scale
 					     << " to " << (newbob_scale * newbob_decay) << endl;
