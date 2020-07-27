@@ -2213,14 +2213,8 @@ bool LearnerThink::save(bool is_final)
 				ok_trials = newbob_ok_trials;
 			} else if (latest_loss < best_loss * 1.02) {
 				cout << " == best (" << best_loss << "), OK" << endl;
-				// best_nn_directory = Path::Combine((std::string)Options["EvalSaveDir"], dir_name);
+                best_nn_directory = Path::Combine((std::string)Options["EvalSaveDir"], dir_name);
                 if (--ok_trials == 0) {
-                    if (best_nn_directory.empty()) {
-                        cout << "WARNING: no improvement from initial model" << endl;
-                    } else {
-                        cout << "restoring parameters from " << best_nn_directory << endl;
-                        Eval::NNUE::RestoreParameters(best_nn_directory);
-                    }
 					++num_drops;
 					cout << "reducing learning rate scale from " << newbob_scale
 					     << " to " << (newbob_scale * newbob_decay) << endl;
