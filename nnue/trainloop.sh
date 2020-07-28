@@ -12,6 +12,7 @@ do
     cp evalsave/$name/nn.bin eval/nn.bin
     ./publish.sh $name
     ./log.sh "Train done $name"
+    touch runmatch
     echo "Waiting"
     # sleep 600
 done
