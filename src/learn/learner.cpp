@@ -831,6 +831,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 				else {
 					// Since the logic becomes complicated, I'm sorry, I will search again with MultiPV here.
                     int cur_multi_pv = (ply < random_opening_ply ? 8 : random_multi_pv);
+                    int cur_multi_pv_diff = (ply < random_opening_ply ? 100 : random_multi_pv_diff);
 					Learner::search(pos, random_multi_pv_depth, cur_multi_pv);
 					// Select one from the top N hands of root Moves
 
@@ -841,7 +842,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					{
 						// The difference from the evaluation value of rm[0] must be within the range of random_multi_pv_diff.
 						// It can be assumed that rm[x].score is arranged in descending order.
-						if (rm[0].score > rm[i].score + random_multi_pv_diff)
+						if (rm[0].score > rm[i].score + cur_multi_pv_diff)
 						{
 							s = i;
 							break;
@@ -2211,7 +2212,7 @@ bool LearnerThink::save(bool is_final)
 				best_nn_directory = Path::Combine((std::string)Options["EvalSaveDir"], dir_name);
 				trials = newbob_num_trials;
 				ok_trials = newbob_ok_trials;
-			} else if (latest_loss < best_loss * 1.02) {
+			} else if (latest_loss < best_loss * 1.05) {
 				cout << " == best (" << best_loss << "), OK" << endl;
                 best_nn_directory = Path::Combine((std::string)Options["EvalSaveDir"], dir_name);
                 if (--ok_trials == 0) {
