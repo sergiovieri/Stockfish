@@ -9,3 +9,6 @@ quit
 
 rm out.txt
 printf "$options" | ./nnue-learn
+
+grep 'result 0' out.txt | wc -l
+grep 'result 1' out.txt | wc -l

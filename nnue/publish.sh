@@ -3,4 +3,4 @@ if [[ $# -ne 1 ]] ; then
     exit 0
 fi
 chmod -R go+r evalsave/$1
-scp evalsave/$1/nn.bin sunfire:~/public_html/nnue/$1.bin
+scp evalsave/$1/nn.bin sunfire0:~/public_html/nnue/$1.bin
