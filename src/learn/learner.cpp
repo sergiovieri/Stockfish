@@ -2470,6 +2470,7 @@ void shuffle_files_on_memory(const vector<string>& filenames,const string output
 	for (auto filename : filenames)
 	{
 		std::cout << "read : " << filename << std::endl;
+        uint64_t start_id = buf.size();
 		read_file_to_memory(filename, [&buf](uint64_t size) {
 			assert((size % sizeof(PackedSfenValue)) == 0);
 			// Expand the buffer and read after the last end.
@@ -2477,6 +2478,46 @@ void shuffle_files_on_memory(const vector<string>& filenames,const string output
 			buf.resize(last + size / sizeof(PackedSfenValue));
 			return (void*)&buf[last];
 		});
+        int64_t diff_sum = 0;
+        int64_t diff_num = 0;
+        uint64_t end_id = buf.size();
+        for (int i = start_id + 1; i < end_id; ++i) {
+            int64_t score1 = buf[i - 1].score;
+            int64_t score2 = buf[i].score;
+            int64_t diff = abs(score1 + score2);
+            diff_num++;
+            diff_sum += diff;
+        }
+        std::cout << "Mean absolute diff " << (double) diff_sum / diff_num << std::endl;
+
+        std::vector<int64_t> new_scores(end_id - start_id);
+        for (int i = start_id; i < end_id; ++i) {
+            int sign = 1;
+            int64_t score_sum = 0;
+            int64_t score_num = 0;
+            for (int j = 0; j <= 2; ++j) {
+                if (i + j >= start_id && i + j < end_id) {
+                    score_sum += buf[i + j].score * sign;
+                    ++score_num;
+                }
+                sign *= -1;
+            }
+            new_scores[i - start_id] = score_sum / score_num;
+        }
+        for (int i = start_id; i < end_id; ++i) {
+            // std::cout << buf[i].score << " -> " << new_scores[i - start_id] << " (" << (int) buf[i].game_result << ")" << std::endl;
+            buf[i].score = new_scores[i - start_id];
+        }
+		diff_sum = 0;
+		diff_num = 0;
+		for (int i = start_id + 1; i < end_id; ++i) {
+			int64_t score1 = buf[i - 1].score;
+			int64_t score2 = buf[i].score;
+			int64_t diff = abs(score1 + score2);
+			diff_num++;
+			diff_sum += diff;
+		}
+		std::cout << "Mean absolute diff " << (double) diff_sum / diff_num << std::endl;
 	}
 
 	// shuffle from buf[0] to buf[size-1]
